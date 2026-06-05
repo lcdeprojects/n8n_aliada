@@ -272,7 +272,8 @@
         }
 
         function updateLeadStatusOnServer(leadId, newStatus, card, oldStatus) {
-            const csrfToken = getCookie('csrftoken');
+            // Get CSRF token directly from the hidden input rendered on the page
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             
             fetch("{% url 'update_lead_status' %}", {
                 method: 'POST',
@@ -285,7 +286,12 @@
                     status: newStatus
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Erro HTTP " + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (!data.success) {
                     // Rollback if failure
@@ -295,7 +301,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert("Erro de conexão ao alterar o status.");
+                alert("Erro ao alterar o status (verifique as credenciais ou permissões).");
                 rollbackCard(card, oldStatus);
             });
         }

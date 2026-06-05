@@ -145,7 +145,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO leads_message (lead_id, direction, content, created_at) VALUES ({{ $('Processar por Lead').item.json.id }}, 'out', '{{ $('IA Follow-Up').item.json.output }}', NOW())"
+        "query": "=INSERT INTO leads_message (lead_id, direction, content, created_at) VALUES ({{ $('Processar por Lead').item.json.id }}, 'out', '{{ $('IA Follow-Up').item.json.output.replace(/'/g, \"''\") }}', NOW())"
       },
       "id": "save-followup-msg",
       "name": "Salvar Mensagem de Follow-Up",
