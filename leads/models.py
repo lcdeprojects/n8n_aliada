@@ -53,7 +53,7 @@ class Message(models.Model):
 
     lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='messages', verbose_name="Lead")
     direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES, verbose_name="Direção")
-    content = models.TextField(verbose_name="Conteúdo da Mensagem")
+    content = models.TextField(verbose_name="Conteúdo de Mensagem")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Enviada em")
 
     class Meta:
