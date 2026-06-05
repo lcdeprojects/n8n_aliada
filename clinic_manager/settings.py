@@ -32,6 +32,20 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+# Configure CSRF Trusted Origins for AJAX requests in production (DEBUG = False)
+CSRF_TRUSTED_ORIGINS = []
+csrf_trusted_env = os.getenv('CSRF_TRUSTED_ORIGINS')
+if csrf_trusted_env:
+    CSRF_TRUSTED_ORIGINS = csrf_trusted_env.split(',')
+else:
+    for host in ALLOWED_HOSTS:
+        if host and host != '*':
+            CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
+            CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
+    # Always trust the current Easypanel domain
+    CSRF_TRUSTED_ORIGINS.append("https://n8n-wpp-aliada-follow.syzsf4.easypanel.host")
+
+
 
 # Application definition
 
