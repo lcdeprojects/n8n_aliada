@@ -1,0 +1,31 @@
+<div class="lead-card" 
+     id="lead-{{ lead.id }}" 
+     data-id="{{ lead.id }}" 
+     data-status="{{ lead.status }}" 
+     data-messages='{{ lead.messages_json|safe }}'
+     draggable="true" 
+     ondragstart="dragStart(event)" 
+     ondragstart="dragStart(event)" 
+     ondragend="dragEnd(event)" 
+     onclick="showLeadDetails(this, event)">
+    
+    <div class="status-changer" onclick="event.stopPropagation()">
+        <select class="select-sm" onchange="changeStatusSelect(this)">
+            {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if lead.status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="lead-name">{{ lead.name }}</div>
+    <div class="lead-phone">
+        <i class="fa-brands fa-whatsapp"></i> {{ lead.phone }}
+    </div>
+    
+    <div class="lead-footer">
+        <div class="lead-time">
+            <i class="fa-regular fa-clock"></i> 
+            {{ lead.last_interaction|date:"d/m/Y H:i" }}
+        </div>
+    </div>
+</div>

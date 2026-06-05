@@ -1,0 +1,394 @@
+{
+  "name": "Evolution API - Receber Mensagem e Resposta IA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolution-webhook",
+        "options": {}
+      },
+      "id": "webhook-node-id",
+      "name": "Webhook Evolution API",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "phone",
+              "value": "={{ $json.body.data.key.remoteJid.replace(/\\D/g, '') }}"
+            },
+            {
+              "name": "name",
+              "value": "={{ $json.body.data.pushName || 'Paciente' }}"
+            },
+            {
+              "name": "messageText",
+              "value": "={{ $json.body.data.message.conversation || $json.body.data.message.extendedTextMessage.text || 'Mensagem sem texto' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-data-id",
+      "name": "Extrair Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        470,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, status FROM leads_lead WHERE phone = '{{ $json.phone }}' LIMIT 1;"
+      },
+      "id": "check-lead-db",
+      "name": "Buscar Lead no Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "supabase-db-credential-id",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "larger"
+            }
+          ]
+        }
+      },
+      "id": "if-lead-exists",
+      "name": "Existe no Banco?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE leads_lead SET name = '{{ $('Extrair Dados').item.json.name }}', status = 'atendimento', last_interaction = NOW() WHERE id = {{ $json[0].id }} RETURNING id, status;"
+      },
+      "id": "update-lead-db",
+      "name": "Atualizar Lead Existente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "supabase-db-credential-id",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO leads_lead (name, phone, status, last_interaction, created_at, updated_at) VALUES ('{{ $('Extrair Dados').item.json.name }}', '{{ $('Extrair Dados').item.json.phone }}', 'atendimento', NOW(), NOW(), NOW()) RETURNING id, 'atendimento' as status;"
+      },
+      "id": "insert-lead-db",
+      "name": "Criar Novo Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "supabase-db-credential-id",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO leads_message (lead_id, direction, content, created_at) VALUES ({{ $json[0].id }}, 'in', '{{ $('Extrair Dados').item.json.messageText }}', NOW()) RETURNING lead_id;"
+      },
+      "id": "save-incoming-msg",
+      "name": "Salvar Mensagem Recebida",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "supabase-db-credential-id",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT direction, content FROM leads_message WHERE lead_id = {{ $json.lead_id }} ORDER BY created_at DESC LIMIT 6;"
+      },
+      "id": "get-chat-history",
+      "name": "Buscar Histórico",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "supabase-db-credential-id",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "openai-model-id",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1820,
+        450
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credential-id",
+          "name": "OpenAI API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Paciente: {{ $('Extrair Dados').item.json.messageText }}",
+        "systemMessage": "=Você é o assistente virtual inteligente da Clínica Aliada. Seu objetivo é ajudar a secretária humana a conduzir o paciente para o agendamento.\n\nDiretrizes de Tom:\n- Seja calmo, compreensivo e acolhedor.\n- Faça perguntas abertas e empáticas para entender a necessidade real do paciente.\n- Mantenha respostas curtas (máximo 3 parágrafos curtos).\n\nHistórico Recente de Mensagens:\n{{ JSON.stringify($('Buscar Histórico').item.json) }}"
+      },
+      "id": "ai-agent-id",
+      "name": "IA Resposta",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [
+        1820,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sua-api-evolution.hostinger.com/message/sendText/{{ $('Extrair Dados').item.json.phone }}",
+        "sendHeaders": true,
+        "headersUi": {
+          "parameter": [
+            {
+              "name": "apikey",
+              "value": "sua-api-key-global-da-evolution-aqui"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Extrair Dados').item.json.phone }}\",\n  \"options\": {\n    \"delay\": 1200,\n    \"presence\": \"composing\"\n  },\n  \"textMessage\": {\n    \"text\": \"{{ $json.output }}\"\n  }\n}"
+      },
+      "id": "send-wa-message",
+      "name": "Enviar WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2060,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO leads_message (lead_id, direction, content, created_at) VALUES ({{ $('Salvar Mensagem Recebida').item.json.lead_id }}, 'out', '{{ $('IA Resposta').item.json.output }}', NOW())"
+      },
+      "id": "save-outgoing-msg",
+      "name": "Salvar Mensagem Enviada",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        2280,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "supabase-db-credential-id",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Evolution API": {
+      "main": [
+        [
+          {
+            "node": "Extrair Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair Dados": {
+      "main": [
+        [
+          {
+            "node": "Buscar Lead no Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Lead no Supabase": {
+      "main": [
+        [
+          {
+            "node": "Existe no Banco?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Existe no Banco?": {
+      "main": [
+        [
+          {
+            "node": "Atualizar Lead Existente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Criar Novo Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar Lead Existente": {
+      "main": [
+        [
+          {
+            "node": "Salvar Mensagem Recebida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Novo Lead": {
+      "main": [
+        [
+          {
+            "node": "Salvar Mensagem Recebida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar Mensagem Recebida": {
+      "main": [
+        [
+          {
+            "node": "Buscar Histórico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Histórico": {
+      "main": [
+        [
+          {
+            "node": "IA Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "IA Resposta",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA Resposta": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Salvar Mensagem Enviada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "evolution-webhook-flow",
+  "id": "evolution-webhook-flow",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
