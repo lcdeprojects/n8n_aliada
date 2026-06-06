@@ -104,3 +104,13 @@ def add_lead(request):
                 lead.save()
                 
     return redirect('lead_dashboard')
+
+def delete_lead(request, lead_id):
+    try:
+        lead = Lead.objects.get(id=lead_id)
+        lead.delete()
+        return JsonResponse({'success': True})
+    except Lead.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Lead não encontrado.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

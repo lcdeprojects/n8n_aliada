@@ -145,6 +145,7 @@
             
             <div style="margin-bottom: 1.5rem;">
                 <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-secondary);">Histórico de Mensagens</h4>
+                <button class="close-btn" onclick="deleteLead({{ lead.id }})">Excluir Lead</button>
                 <div id="modal-chat-history" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
                     <!-- Preenchido via JS -->
                 </div>
