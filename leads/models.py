@@ -23,6 +23,10 @@ class Lead(models.Model):
     last_interaction = models.DateTimeField(auto_now=True, verbose_name="Última Interação")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
+    
+    # Colunas de controle contra duplicidade de follow-ups
+    followup_stage = models.IntegerField(default=0, verbose_name="Estágio de Follow-Up")
+    last_followup_at = models.DateTimeField(null=True, blank=True, verbose_name="Último Follow-Up em")
 
     class Meta:
         ordering = ['-last_interaction']
@@ -40,8 +44,11 @@ class Lead(models.Model):
             })
         return json.dumps(data)
 
-    def __str__(self):
+    @property
+    def last_message(self):
+        return self.messages.all().last()
 
+    def __str__(self):
         return f"{self.name} ({self.phone}) - {self.get_status_display()}"
 
 

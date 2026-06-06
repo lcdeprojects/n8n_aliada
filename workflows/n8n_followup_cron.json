@@ -58,7 +58,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT direction, content, created_at FROM leads_message WHERE lead_id = {{ $json.id }} ORDER BY created_at DESC LIMIT 6;"
+        "query": "=SELECT direction, content, created_at FROM leads_message WHERE lead_id = {{ $json.id }} ORDER BY created_at DESC LIMIT 8;"
       },
       "id": "get-lead-history",
       "name": "Buscar Histórico do Lead",
@@ -77,9 +77,22 @@
     },
     {
       "parameters": {
+        "jsCode": "const items = $input.all();\nconst reversed = [...items].reverse();\nlet formatted = \"\";\n\nfor (const msg of reversed) {\n  const sender = msg.json.direction === 'in' ? 'Paciente' : 'Clínica/IA';\n  formatted += `${sender}: ${msg.json.content}\\n`;\n}\n\nreturn { formattedChatHistory: formatted || \"Nenhuma mensagem anterior.\" };"
+      },
+      "id": "format-history-id",
+      "name": "Formatar Histórico",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "model": "gpt-4o-mini",
         "options": {
-          "temperature": 0.6
+          "temperature": 0.5
         }
       },
       "id": "openai-model-cron-id",
@@ -87,7 +100,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
-        1080,
+        1300,
         450
       ],
       "credentials": {
@@ -100,15 +113,15 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Gere um follow-up para o paciente {{ $('Processar por Lead').item.json.name }} (Status atual: {{ $('Processar por Lead').item.json.status }}).",
-        "systemMessage": "=Você é o assistente virtual da Clínica Aliada. Seu objetivo é retomar o contato com pacientes de forma sutil, empática e atenciosa para entender se eles ainda têm interesse no agendamento ou se precisam de esclarecimentos.\n\nInstruções de Tom e Voz (MUITO IMPORTANTES):\n- Tom Calmo, Questionador, Entendedor e Empático.\n- Não pareça insistente nem um robô de cobrança.\n- Faça perguntas abertas e demonstre que entende a rotina corrida do paciente.\n- Use expressões como: 'Tudo bem?', 'Pensei em você hoje para saber...', 'Ficou alguma dúvida sobre o procedimento?', 'Sei que a rotina é corrida...'.\n- Mantenha a mensagem curta (no máximo 2-3 linhas de texto).\n\nHistórico de Conversa Recente com o Paciente:\n{{ JSON.stringify($json) }}"
+        "text": "=Gere um follow-up para o paciente {{ $('Processar por Lead').item.json.name }} (Status atual: {{ $('Processar por Lead').item.json.status }}).\n\nHistórico Cronológico do Chat:\n{{ $json.formattedChatHistory }}",
+        "systemMessage": "=Você é o assistente virtual da Clínica Aliada. Seu objetivo é retomar o contato com pacientes que pararam de responder de forma sutil, empática e atenciosa.\n\nInstruções de Tom e Voz (MUITO IMPORTANTES):\n- Tom Calmo, Questionador, Entendedor e Empático.\n- Não pareça insistente nem pareça cobrança.\n- Faça perguntas abertas e demonstre que entende a rotina corrida do paciente.\n- Mantenha a mensagem curta (no máximo 2-3 linhas de texto).\n\nPara o follow-up, adapte sutilmente o seguinte template pronto, preenchendo o nome e mantendo a estrutura amigável:\n\nTEMPLATE_FOLLOWUP:\n\"Olá [Nome], tudo bem? Pensei em você hoje e passei para saber se conseguiu dar uma olhadinha no que conversamos antes. Sei que a rotina é corrida... Ficou alguma dúvida sobre o procedimento ou agendamento?\""
       },
       "id": "ai-followup-id",
       "name": "IA Follow-Up",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1,
       "position": [
-        1080,
+        1300,
         300
       ]
     },
@@ -138,7 +151,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        1320,
+        1540,
         300
       ]
     },
@@ -152,7 +165,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        1540,
+        1760,
         200
       ],
       "credentials": {
@@ -172,7 +185,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        1760,
+        1980,
         200
       ],
       "credentials": {
@@ -198,7 +211,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        1980,
+        2200,
         300
       ]
     }
@@ -238,6 +251,17 @@
       ]
     },
     "Buscar Histórico do Lead": {
+      "main": [
+        [
+          {
+            "node": "Formatar Histórico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Histórico": {
       "main": [
         [
           {

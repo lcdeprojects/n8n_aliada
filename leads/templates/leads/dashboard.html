@@ -389,6 +389,30 @@
                 chatHistoryContainer.scrollTop = chatHistoryContainer.scrollHeight;
             }, 50);
         }
+
+        // Auto-refresh the Kanban board dynamically every 30 seconds without full page reload
+        setInterval(() => {
+            // Do not refresh if the secretary is currently using any modal (adding a lead or viewing history)
+            if (document.querySelector('.modal.show')) {
+                return;
+            }
+            
+            fetch(window.location.href)
+                .then(response => {
+                    if (response.ok) return response.text();
+                    throw new Error('Falha no polling de atualização');
+                })
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newBoard = doc.querySelector('.board');
+                    if (newBoard) {
+                        document.querySelector('.board').innerHTML = newBoard.innerHTML;
+                        updateCounts();
+                    }
+                })
+                .catch(err => console.warn('Aviso de auto-atualização silencioso:', err));
+        }, 30000);
     </script>
 </body>
 </html>

@@ -51,8 +51,10 @@ def update_lead_status(request):
         old_status = lead.status
         
         if old_status != new_status:
-            # Update Lead
+            # Update Lead and reset follow-up tracking
             lead.status = new_status
+            lead.followup_stage = 0
+            lead.last_followup_at = None
             lead.save()
             
             # Log history
@@ -93,6 +95,8 @@ def add_lead(request):
             old_status = lead.status
             if old_status != status:
                 lead.status = status
+                lead.followup_stage = 0
+                lead.last_followup_at = None
                 lead.save()
                 StatusHistory.objects.create(
                     lead=lead,
