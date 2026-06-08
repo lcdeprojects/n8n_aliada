@@ -23,6 +23,7 @@ class Lead(models.Model):
     last_interaction = models.DateTimeField(auto_now=True, verbose_name="Última Interação")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
+    is_active = models.BooleanField(default=True, verbose_name="Ativo")
     
     # Colunas de controle contra duplicidade de follow-ups
     followup_stage = models.IntegerField(default=0, verbose_name="Estágio de Follow-Up")
