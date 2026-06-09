@@ -157,11 +157,17 @@ def chatwoot_webhook(request):
         # O webhook do Chatwoot envia o evento no campo 'event'
         event = data.get('event')
         
-        if event in ['contact_created', 'conversation_created']:
-            sender = data.get('meta', {}).get('sender', {})
-            # Se for contact_created, os dados podem vir na raiz
-            if not sender:
-                sender = data
+        if event in ['contact_created', 'conversation_created', 'message_created']:
+            sender = {}
+            
+            if event == 'message_created':
+                # No message_created, o paciente fica dentro de conversation.meta.sender
+                sender = data.get('conversation', {}).get('meta', {}).get('sender', {})
+            else:
+                # No contact_created e conversation_created
+                sender = data.get('meta', {}).get('sender', {})
+                if not sender:
+                    sender = data
                 
             chatwoot_id = sender.get('id')
             name = sender.get('name', 'Novo Paciente')
