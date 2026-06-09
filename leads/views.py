@@ -3,31 +3,54 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
+from django.db.models import Sum
+from django.template.loader import render_to_string
 import json
 
-from .models import Lead, StatusHistory, Message
+from .models import Lead, StatusHistory
+
+def get_kanban_data(request):
+    leads = Lead.objects.filter(is_active=True).order_by('-updated_at')
+    
+    # Group leads
+    grouped_leads = {status: leads.filter(status=status) for status, label in Lead.STATUS_CHOICES}
+    
+    # Construct HTML for each column
+    columns_html = {}
+    
+    for status, label in Lead.STATUS_CHOICES:
+        leads_in_col = grouped_leads[status]
+        html = ''
+        for lead in leads_in_col:
+            html += render_to_string('leads/includes/lead_card.html', {'lead': lead, 'status_choices': Lead.STATUS_CHOICES})
+            
+        columns_html[status] = {
+            'html': html,
+            'count': leads_in_col.count(),
+            'total_value': leads_in_col.aggregate(total=Sum('value'))['total'] or 0.00
+        }
+        
+    return JsonResponse({'columns': columns_html})
 
 def lead_dashboard(request):
-    leads = Lead.objects.filter(is_active=True)
-    
-    # Group leads by their status
-    grouped_leads = {
-        'atendimento': leads.filter(status='atendimento'),
-        'aguardando_decisao': leads.filter(status='aguardando_decisao'),
-        'agendado': leads.filter(status='agendado'),
-        'perdido': leads.filter(status='perdido'),
-        'reativacao': leads.filter(status='reativacao'),
-    }
-
-    # Count of leads in each column
-    counts = {k: v.count() for k, v in grouped_leads.items()}
-    
     status_choices = Lead.STATUS_CHOICES
+    leads = Lead.objects.filter(is_active=True).order_by('-updated_at')
+    
+    columns_data = []
+    for status, label in status_choices:
+        qs = leads.filter(status=status)
+        total_val = qs.aggregate(total=Sum('value'))['total'] or 0.00
+        columns_data.append({
+            'val': status,
+            'label': label,
+            'count': qs.count(),
+            'total_value': total_val,
+            'leads': qs
+        })
     
     context = {
-        'grouped_leads': grouped_leads,
-        'counts': counts,
         'status_choices': status_choices,
+        'columns_data': columns_data,
     }
     return render(request, 'leads/dashboard.html', context)
 
@@ -125,38 +148,48 @@ def delete_lead(request, lead_id):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
+@csrf_exempt
 @require_POST
-def add_message(request):
+def chatwoot_webhook(request):
     try:
-        if request.content_type == 'application/json':
-            data = json.loads(request.body)
-        else:
-            data = request.POST
-
-        lead_id = data.get('lead_id')
-        content = data.get('content')
-        direction = data.get('direction')
-
-        if not lead_id or not content or not direction:
-            return JsonResponse({'success': False, 'error': 'Parâmetros ausentes.'}, status=400)
-
-        lead = Lead.objects.get(id=lead_id)
-        msg = Message.objects.create(
-            lead=lead,
-            direction=direction,
-            content=content
-        )
+        data = json.loads(request.body)
         
-        from django.utils.timezone import localtime
-        return JsonResponse({
-            'success': True,
-            'message': {
-                'direction': msg.direction,
-                'content': msg.content,
-                'created_at': localtime(msg.created_at).strftime('%d/%m/%Y %H:%M')
-            }
-        })
-    except Lead.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Lead não encontrado.'}, status=404)
+        # O webhook do Chatwoot envia o evento no campo 'event'
+        event = data.get('event')
+        
+        if event in ['contact_created', 'conversation_created']:
+            sender = data.get('meta', {}).get('sender', {})
+            # Se for contact_created, os dados podem vir na raiz
+            if not sender:
+                sender = data
+                
+            chatwoot_id = sender.get('id')
+            name = sender.get('name', 'Novo Paciente')
+            phone = sender.get('phone_number', '')
+            
+            if not phone:
+                return JsonResponse({'status': 'ignored', 'reason': 'Sem telefone'})
+                
+            # Limpa o telefone
+            phone = ''.join(filter(str.isdigit, str(phone)))
+            
+            # Cria ou atualiza o lead
+            lead, created = Lead.objects.get_or_create(
+                phone=phone,
+                defaults={
+                    'name': name,
+                    'chatwoot_id': chatwoot_id,
+                    'status': 'novo_lead'
+                }
+            )
+            
+            if not created and not lead.chatwoot_id:
+                lead.chatwoot_id = chatwoot_id
+                lead.save()
+                
+            return JsonResponse({'status': 'success', 'created': created})
+            
+        return JsonResponse({'status': 'ignored', 'event': event})
+        
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        return JsonResponse({'error': str(e)}, status=500)

@@ -2,13 +2,10 @@
      id="lead-{{ lead.id }}" 
      data-id="{{ lead.id }}" 
      data-status="{{ lead.status }}" 
-     data-messages='{{ lead.messages_json|safe }}'
      draggable="true" 
      ondragstart="dragStart(event)" 
      ondragend="dragEnd(event)" 
-     onclick="showLeadDetails(this, event)"
-     style="{% if lead.followup_stage > 0 and lead.last_message.direction == 'out' %}border-color: rgba(245, 158, 11, 0.4); box-shadow: 0 0 10px rgba(245, 158, 11, 0.1);{% endif %}">
-    
+     onclick="showLeadDetails(this, event)">
     <div class="status-changer" onclick="event.stopPropagation()">
         <select class="select-sm" onchange="changeStatusSelect(this)">
             {% for val, label in status_choices %}
@@ -22,23 +19,29 @@
         <i class="fa-brands fa-whatsapp"></i> {{ lead.phone }}
     </div>
     
-    {% if lead.last_message %}
-    <div class="lead-last-msg" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 0.25rem;">
-        {% if lead.last_message.direction == 'out' %}
-            <span style="color: var(--color-reativacao); font-weight: 500;">🤖 IA:</span>
-        {% else %}
-            <span style="color: var(--text-primary); font-weight: 500;">👤 Paciente:</span>
-        {% endif %}
-        <span>{{ lead.last_message.content }}</span>
+    {% if lead.value > 0 %}
+    <div style="font-size: 0.75rem; color: #10B981; margin-top: 0.4rem; font-weight: 600;">
+        <i class="fa-solid fa-money-bill-wave"></i> R$ {{ lead.value|floatformat:2 }}
     </div>
     {% endif %}
 
-    {% if lead.followup_stage > 0 and lead.last_message.direction == 'out' %}
-    <div style="margin-top: 0.5rem; display: flex;">
-        <span style="display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.65rem; background: rgba(245, 158, 11, 0.12); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.3); padding: 0.15rem 0.45rem; border-radius: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">
-            <i class="fa-solid fa-robot"></i> Follow-up {{ lead.followup_stage }} enviado
-        </span>
-    </div>
+    {% if lead.next_followup_date %}
+        {% now "Y-m-d H:i:s" as current_time %}
+        <div style="margin-top: 0.5rem; display: flex;">
+            <span style="display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.65rem; padding: 0.15rem 0.45rem; border-radius: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+                {% if lead.next_followup_date|date:'Y-m-d H:i:s' < current_time %}
+                    background: rgba(220, 38, 38, 0.12); color: #DC2626; border: 1px solid rgba(220, 38, 38, 0.3);
+                {% else %}
+                    background: rgba(59, 130, 246, 0.12); color: #3B82F6; border: 1px solid rgba(59, 130, 246, 0.3);
+                {% endif %}">
+                <i class="fa-regular fa-calendar-check"></i> 
+                {% if lead.next_followup_date|date:'Y-m-d H:i:s' < current_time %}
+                    ATRASADO: {{ lead.next_followup_date|date:"d/m H:i" }}
+                {% else %}
+                    Retornar: {{ lead.next_followup_date|date:"d/m H:i" }}
+                {% endif %}
+            </span>
+        </div>
     {% endif %}
     
     <div class="lead-footer">

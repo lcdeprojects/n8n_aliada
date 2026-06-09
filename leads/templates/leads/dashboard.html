@@ -17,86 +17,28 @@
         </button>
     </header>
 
-    <main class="board">
-        <!-- Coluna: Em Atendimento -->
-        <div class="column col-atendimento" data-status="atendimento" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="drop(event)">
-            <div class="column-header">
+    <main class="board" id="kanban-board">
+        {% for col in columns_data %}
+        <div class="column col-{{ col.val }}" data-status="{{ col.val }}" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="drop(event)">
+            <div class="column-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div class="column-title-wrapper">
                     <span class="column-dot"></span>
-                    <span class="column-title">Em Atendimento</span>
+                    <span class="column-title">{{ col.label }}</span>
                 </div>
-                <span class="column-count" id="count-atendimento">{{ counts.atendimento }}</span>
+                <div style="text-align: right;">
+                    <span class="column-count" id="count-{{ col.val }}">{{ col.count }}</span>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem; font-weight: 500;" id="val-{{ col.val }}">
+                        R$ {{ col.total_value|floatformat:2 }}
+                    </div>
+                </div>
             </div>
-            <div class="lead-list" id="list-atendimento">
-                {% for lead in grouped_leads.atendimento %}
+            <div class="lead-list" id="list-{{ col.val }}">
+                {% for lead in col.leads %}
                     {% include 'leads/includes/lead_card.html' with lead=lead %}
                 {% endfor %}
             </div>
         </div>
-
-        <!-- Coluna: Aguardando Decisão -->
-        <div class="column col-aguardando_decisao" data-status="aguardando_decisao" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="drop(event)">
-            <div class="column-header">
-                <div class="column-title-wrapper">
-                    <span class="column-dot"></span>
-                    <span class="column-title">Aguardando Decisão</span>
-                </div>
-                <span class="column-count" id="count-aguardando_decisao">{{ counts.aguardando_decisao }}</span>
-            </div>
-            <div class="lead-list" id="list-aguardando_decisao">
-                {% for lead in grouped_leads.aguardando_decisao %}
-                    {% include 'leads/includes/lead_card.html' with lead=lead %}
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Coluna: Agendado -->
-        <div class="column col-agendado" data-status="agendado" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="drop(event)">
-            <div class="column-header">
-                <div class="column-title-wrapper">
-                    <span class="column-dot"></span>
-                    <span class="column-title">Agendado</span>
-                </div>
-                <span class="column-count" id="count-agendado">{{ counts.agendado }}</span>
-            </div>
-            <div class="lead-list" id="list-agendado">
-                {% for lead in grouped_leads.agendado %}
-                    {% include 'leads/includes/lead_card.html' with lead=lead %}
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Coluna: Perdido -->
-        <div class="column col-perdido" data-status="perdido" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="drop(event)">
-            <div class="column-header">
-                <div class="column-title-wrapper">
-                    <span class="column-dot"></span>
-                    <span class="column-title">Perdido</span>
-                </div>
-                <span class="column-count" id="count-perdido">{{ counts.perdido }}</span>
-            </div>
-            <div class="lead-list" id="list-perdido">
-                {% for lead in grouped_leads.perdido %}
-                    {% include 'leads/includes/lead_card.html' with lead=lead %}
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Coluna: Reativação -->
-        <div class="column col-reativacao" data-status="reativacao" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="drop(event)">
-            <div class="column-header">
-                <div class="column-title-wrapper">
-                    <span class="column-dot"></span>
-                    <span class="column-title">Reativação</span>
-                </div>
-                <span class="column-count" id="count-reativacao">{{ counts.reativacao }}</span>
-            </div>
-            <div class="lead-list" id="list-reativacao">
-                {% for lead in grouped_leads.reativacao %}
-                    {% include 'leads/includes/lead_card.html' with lead=lead %}
-                {% endfor %}
-            </div>
-        </div>
+        {% endfor %}
     </main>
 
     <!-- Modal: Adicionar Paciente -->
@@ -144,18 +86,7 @@
             </div>
             
             <div style="margin-bottom: 1.5rem;">
-                <button class="btn-primary" style="background: rgba(194, 31, 31, 0.7); color: var(--text-secondary); box-shadow: none;" id="modal-delete-btn">Excluir Lead</button>
-                <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-secondary);">Histórico de Mensagens</h4>
-                <div id="modal-chat-history" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
-                    <!-- Preenchido via JS -->
-                </div>
-                
-                <!-- Simulador de Mensagens -->
-                <div style="display: flex; gap: 0.5rem; margin-top: 1rem; align-items: stretch;">
-                    <input type="text" id="modal-chat-input" class="form-control" style="flex: 1;" placeholder="Digite uma mensagem para simular...">
-                    <button class="btn-primary" style="background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.1); box-shadow: none; white-space: nowrap; padding: 0.5rem 1rem;" onclick="simulateMessage('in')"><i class="fa-solid fa-arrow-down"></i> Receber</button>
-                    <button class="btn-primary" style="white-space: nowrap; padding: 0.5rem 1rem;" onclick="simulateMessage('out')"><i class="fa-solid fa-paper-plane"></i> Enviar</button>
-                </div>
+                <button class="btn-primary" style="background: rgba(194, 31, 31, 0.7); color: var(--text-secondary); box-shadow: none;" id="modal-delete-btn">Arquivar Paciente</button>
             </div>
 
             <div style="display: flex; justify-content: flex-end;">
@@ -362,7 +293,7 @@
             });
         }
 
-        // Show Lead Details and Messages
+        // Show Lead Details
         function showLeadDetails(cardElement, event) {
             // Prevent triggering modal when clicking the dropdown
             if (event.target.tagName === 'SELECT' || event.target.tagName === 'OPTION') {
@@ -371,134 +302,13 @@
 
             const name = cardElement.querySelector('.lead-name').innerText;
             const phone = cardElement.querySelector('.lead-phone').innerText.trim();
-            const rawMessages = cardElement.getAttribute('data-messages');
             const leadId = cardElement.getAttribute('data-id');
             
             document.getElementById('modal-lead-name').innerText = name;
             document.getElementById('modal-lead-phone').innerHTML = `<i class="fa-solid fa-phone"></i> ${phone}`;
             document.getElementById('modal-delete-btn').setAttribute('onclick', `deleteLead(${leadId})`);
             
-            const chatHistoryContainer = document.getElementById('modal-chat-history');
-            chatHistoryContainer.innerHTML = '';
-            
-            try {
-                const messages = JSON.parse(rawMessages);
-                if (messages && messages.length > 0) {
-                    messages.forEach(msg => {
-                        const bubble = document.createElement('div');
-                        const isOut = msg.direction === 'out';
-                        
-                        appendMessageBubble(msg, chatHistoryContainer);
-                    });
-                } else {
-                    chatHistoryContainer.innerHTML = '<p id="no-msg-text" style="color: var(--text-secondary); text-align: center; font-size: 0.85rem; padding: 1rem;">Nenhuma mensagem registrada para este lead.</p>';
-                }
-            } catch (e) {
-                console.error(e);
-                chatHistoryContainer.innerHTML = '<p id="no-msg-text" style="color: var(--text-secondary); text-align: center; font-size: 0.85rem; padding: 1rem;">Sem histórico de mensagens.</p>';
-            }
-            
             openModal('leadDetailModal');
-            
-            // Auto scroll to bottom
-            setTimeout(() => {
-                chatHistoryContainer.scrollTop = chatHistoryContainer.scrollHeight;
-            }, 50);
-        }
-
-        function appendMessageBubble(msg, container) {
-            const isOut = msg.direction === 'out';
-            
-            const bubble = document.createElement('div');
-            bubble.style.padding = '0.75rem 1rem';
-            bubble.style.borderRadius = '12px';
-            bubble.style.maxWidth = '80%';
-            bubble.style.fontSize = '0.85rem';
-            bubble.style.lineHeight = '1.4';
-            
-            if (isOut) {
-                bubble.style.alignSelf = 'flex-end';
-                bubble.style.backgroundColor = 'rgba(6, 182, 212, 0.2)';
-                bubble.style.border = '1px solid rgba(6, 182, 212, 0.3)';
-                bubble.style.color = '#FFF';
-            } else {
-                bubble.style.alignSelf = 'flex-start';
-                bubble.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-                bubble.style.border = '1px solid rgba(255, 255, 255, 0.08)';
-                bubble.style.color = '#E5E7EB';
-            }
-            
-            const text = document.createElement('div');
-            text.innerText = msg.content;
-            
-            const time = document.createElement('div');
-            time.innerText = msg.created_at;
-            time.style.fontSize = '0.7rem';
-            time.style.color = 'var(--text-secondary)';
-            time.style.marginTop = '0.35rem';
-            time.style.textAlign = isOut ? 'right' : 'left';
-            
-            bubble.appendChild(text);
-            bubble.appendChild(time);
-            container.appendChild(bubble);
-        }
-
-        function simulateMessage(direction) {
-            const input = document.getElementById('modal-chat-input');
-            const content = input.value.trim();
-            if (!content) return;
-            
-            const deleteBtnAttr = document.getElementById('modal-delete-btn').getAttribute('onclick');
-            const match = deleteBtnAttr ? deleteBtnAttr.match(/\d+/) : null;
-            if (!match) return;
-            const leadId = match[0];
-            
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            
-            fetch("{% url 'add_message' %}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({
-                    lead_id: leadId,
-                    content: content,
-                    direction: direction
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    input.value = '';
-                    const container = document.getElementById('modal-chat-history');
-                    const noMsg = document.getElementById('no-msg-text');
-                    if (noMsg) noMsg.remove();
-                    
-                    appendMessageBubble(data.message, container);
-                    
-                    setTimeout(() => {
-                        container.scrollTop = container.scrollHeight;
-                    }, 50);
-                    
-                    // Update data-messages array in the DOM
-                    const card = document.querySelector(`.lead-card[data-id="${leadId}"]`);
-                    if (card) {
-                        let msgs = [];
-                        try {
-                            msgs = JSON.parse(card.getAttribute('data-messages') || "[]");
-                        } catch(e) {}
-                        msgs.push(data.message);
-                        card.setAttribute('data-messages', JSON.stringify(msgs));
-                    }
-                } else {
-                    alert("Erro: " + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert("Erro ao enviar mensagem.");
-            });
         }
 
         // Auto-refresh the Kanban board dynamically every 30 seconds without full page reload

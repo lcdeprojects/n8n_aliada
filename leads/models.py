@@ -5,21 +5,29 @@ import json
 
 class Lead(models.Model):
     STATUS_CHOICES = [
-        ('atendimento', 'Em Atendimento'),
-        ('aguardando_decisao', 'Aguardando Decisão'),
-        ('agendado', 'Agendado'),
-        ('perdido', 'Perdido'),
-        ('reativacao', 'Reativação'),
+        ('novo_lead', 'Novo Lead'),
+        ('qualificacao', 'Em Qualificação'),
+        ('orcamento', 'Orçamento Enviado'),
+        ('agendado', 'Consulta Agendada'),
+        ('em_tratamento', 'Em Tratamento'),
+        ('ganho', 'Tratamento Concluído'),
+        ('perdido', 'Perdido / Não Converteu'),
     ]
 
-    name = models.CharField(max_length=255, verbose_name="Nome do Paciente")
-    phone = models.CharField(max_length=50, unique=True, verbose_name="Telefone/WhatsApp")
+    name = models.CharField(max_length=255, verbose_name="Nome do Lead")
+    phone = models.CharField(max_length=20, verbose_name="WhatsApp")
     status = models.CharField(
         max_length=50, 
         choices=STATUS_CHOICES, 
-        default='atendimento',
-        verbose_name="Status"
+        default='novo_lead',
+        verbose_name="Status/Etapa"
     )
+    
+    # Novos campos de CRM Hubspot-like
+    chatwoot_id = models.IntegerField(null=True, blank=True, verbose_name="ID no Chatwoot")
+    next_followup_date = models.DateTimeField(null=True, blank=True, verbose_name="Próximo Follow-up")
+    value = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Valor Estimado (R$)")
+
     last_interaction = models.DateTimeField(auto_now=True, verbose_name="Última Interação")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
@@ -34,44 +42,12 @@ class Lead(models.Model):
         verbose_name = "Lead"
         verbose_name_plural = "Leads"
 
-    def messages_json(self):
-        msgs = self.messages.all()
-        data = []
-        for m in msgs:
-            data.append({
-                'direction': m.direction,
-                'content': m.content,
-                'created_at': localtime(m.created_at).strftime('%d/%m/%Y %H:%M')
-            })
-        return json.dumps(data)
-
     @property
-    def last_message(self):
-        return self.messages.all().last()
+    def status_history(self):
+        return self.status_histories.all()
 
     def __str__(self):
         return f"{self.name} ({self.phone}) - {self.get_status_display()}"
-
-
-class Message(models.Model):
-    DIRECTION_CHOICES = [
-        ('in', 'Recebida (Paciente)'),
-        ('out', 'Enviada (Clínica/IA)'),
-    ]
-
-    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='messages', verbose_name="Lead")
-    direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES, verbose_name="Direção")
-    content = models.TextField(verbose_name="Conteúdo de Mensagem")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Enviada em")
-
-    class Meta:
-        ordering = ['created_at']
-        verbose_name = "Mensagem"
-        verbose_name_plural = "Mensagens"
-
-    def __str__(self):
-        dir_str = "←" if self.direction == 'in' else "→"
-        return f"{dir_str} {self.lead.name}: {self.content[:50]}"
 
 
 class StatusHistory(models.Model):
